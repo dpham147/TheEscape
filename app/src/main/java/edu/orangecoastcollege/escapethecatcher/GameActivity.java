@@ -17,7 +17,7 @@ import java.util.ArrayList;
 
 
 public class GameActivity extends Activity
-        implements GestureDetector.OnGestureListener, GestureDetector.OnDoubleTapListener{
+        implements GestureDetector.OnGestureListener {
 
     private GestureDetector aGesture;
 
@@ -80,6 +80,9 @@ public class GameActivity extends Activity
         winsTextView.setText(resources.getString(R.string.win) + wins);
         lossesTextView.setText(resources.getString(R.string.losses) + losses);
 
+        // Instantiate the GestureDetector
+        aGesture = new GestureDetector(this, this);
+
         startNewGame();
     }
 
@@ -102,19 +105,21 @@ public class GameActivity extends Activity
     private void buildGameBoard() {
         for (int i = 0; i < ROWS; i++) {
             for (int j = 0; j < COLUMNS; j++) {
-                if (gameBoard[i][j] == 1) {
+                if (gameBoard[i][j] == BoardCodes.OBSTACLE) {
                     obstacleImageView = (ImageView) layoutInflater.inflate(R.layout.obstacle_layout, null);
                     obstacleImageView.setX(j * SQUARE + OFFSET);
                     obstacleImageView.setY(i * SQUARE + OFFSET);
                     activityGameRelativeLayout.addView(obstacleImageView);
                     visualObjects.add(obstacleImageView);
                 }
-                else if (gameBoard[i][j] == 3) {
-                    obstacleImageView = (ImageView) layoutInflater.inflate(R.layout.exit_layout, null);
-                    obstacleImageView.setX(j * SQUARE + OFFSET);
-                    obstacleImageView.setY(i * SQUARE + OFFSET);
-                    activityGameRelativeLayout.addView(obstacleImageView);
-                    visualObjects.add(obstacleImageView);
+                else if (gameBoard[i][j] == BoardCodes.EXIT) {
+                    exitImageView = (ImageView) layoutInflater.inflate(R.layout.exit_layout, null);
+                    exitImageView.setX(j * SQUARE + OFFSET);
+                    exitImageView.setY(i * SQUARE + OFFSET);
+                    activityGameRelativeLayout.addView(exitImageView);
+                    visualObjects.add(exitImageView);
+                    exitCol = j;
+                    exitRow = i;
                 }
             }
         }
@@ -157,15 +162,52 @@ public class GameActivity extends Activity
 
     private void movePlayer(float velocityX, float velocityY) {
         // TODO: This method gets called in the onFling event
+        String direction = "";
+        // Decide if X or Y is greater
+        if (Math.abs(velocityX) > Math.abs(velocityY)) {
+            // X is larger (MOVE LEFT OR RIGHT)
+            if (velocityX < -FLING_THRESHOLD) {
+                direction = "LEFT";
+            }
+            else if (velocityX > FLING_THRESHOLD) {
+                direction = "RIGHT";
+            }
+        }
+        else {
+            if (velocityY < -FLING_THRESHOLD) {
+                direction = "UP";
+            }
+            else if (velocityY > FLING_THRESHOLD) {
+                direction = "DOWN";
+            }
+        }
 
-        // TODO: Determine which absolute velocity is greater (x or y)
-        // TODO: If x is negative, move player left.  Else if x is positive, move player right.
-        // TODO: If y is negative, move player down.  Else if y is positive, move player up.
+        // Only move player if direction is NOT empty string
+        if (!direction.equals("")) {
+            player.move(gameBoard, direction);
+            playerImageView.setX(player.getCol() * SQUARE + OFFSET);
+            playerImageView.setY(player.getRow() * SQUARE + OFFSET);
+        }
 
-        // TODO: Then move the zombie, using the player's row and column position.
+        // Move zombie no matter what
+        zombie.move(gameBoard, player.getCol(), player.getRow());
+        zombieImageView.setX(zombie.getCol() * SQUARE + OFFSET);
+        zombieImageView.setY(zombie.getRow() * SQUARE + OFFSET);
+
+        // Determine if game is win or loss
+        if (player.getRow() == exitRow && player.getCol() == exitCol) {
+
+            winsTextView.setText(resources.getString(R.string.win) + (++wins));
+        }
+        else if (player.getRow() == zombie.getRow() && player.getCol() == zombie.getCol()) {
+            lossesTextView.setText(resources.getString(R.string.losses) + (++losses));
+        }
     }
 
-
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        return aGesture.onTouchEvent(event);
+    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -186,20 +228,6 @@ public class GameActivity extends Activity
         return super.onOptionsItemSelected(item);
     }
 
-    @Override
-    public boolean onSingleTapConfirmed(MotionEvent motionEvent) {
-        return false;
-    }
-
-    @Override
-    public boolean onDoubleTap(MotionEvent motionEvent) {
-        return false;
-    }
-
-    @Override
-    public boolean onDoubleTapEvent(MotionEvent motionEvent) {
-        return false;
-    }
 
     @Override
     public boolean onDown(MotionEvent motionEvent) {
@@ -223,7 +251,7 @@ public class GameActivity extends Activity
 
     @Override
     public void onLongPress(MotionEvent motionEvent) {
-
+        startNewGame();
     }
 
     @Override
